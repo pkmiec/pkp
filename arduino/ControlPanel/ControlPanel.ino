@@ -2,7 +2,6 @@
 #include <FastLED.h>
 #include <CMRI.h>
 
-#define STUB_CMRI   true
 #define LED_ON      true
 #define LED_OFF     false
 #define LED_PIN     5
@@ -23,7 +22,7 @@ CMRI cmri(0, 48, 48); // 48 inputs, 48 outputs configure in JMRI: CMRI connectio
 #define NUM_BUTTON_STATES          6
 #define NUM_BUTTON_STATE_TURNOUTS  6
 #define NUM_BUTTON_STATE_LEDS      6
-#define BUTTON_RATE               500
+#define BUTTON_RATE               50
 #define BUTTON_46_ALT_MODE         1
 
 typedef struct {
@@ -116,16 +115,16 @@ Button buttons[NUM_BUTTONS] = {
     42, 3,
     {
       {
-        2, { { 12, TURNOUT_THROW }, { 13, TURNOUT_CLOSE } },
+        2, { { 12, TURNOUT_CLOSE }, { 13, TURNOUT_CLOSE } },
+        3, { { 10, LED_ON }, { 11, LED_OFF }, { 12, LED_OFF } }
+      },
+      {
+        2, { { 12, TURNOUT_CLOSE }, { 13, TURNOUT_THROW } },
         3, { { 10, LED_OFF }, { 11, LED_ON }, { 12, LED_OFF } }
       },
       {
-        2, { { 12, TURNOUT_THROW }, { 13, TURNOUT_THROW } },
+        1, { { 12, TURNOUT_THROW } },
         3, { { 10, LED_OFF }, { 11, LED_OFF }, { 12, LED_ON } }
-      },
-      {
-        1, { { 12, TURNOUT_CLOSE } },
-        3, { { 10, LED_ON }, { 11, LED_OFF }, { 12, LED_OFF } }
       },
     }
   },
@@ -276,6 +275,12 @@ int turnoutSyncTime = 0;
 byte turnoutInputs[NUM_TURNOUTS];
 byte turnoutOutputs[NUM_TURNOUTS];
 
+#define MODE_CMRI 0
+#define MODE_STUB_CMRI 1
+#define MODE_TEST_LIGHTS 2
+#define MODE_SYNC_TURNOUTS 3
+int mode = MODE_CMRI;
+
 void setupButton(Button *button) {
   pinMode(button->pin, INPUT_PULLUP);
 }
@@ -382,14 +387,20 @@ void readTurnoutsForButton(Button *button) {
 }
 
 void writeLeds() {
+  setColorForAllLeds(CRGB::Black);
   EVERY_N_MILLIS(BLINK_RATE) {
     blink = !blink;
   }
-
-  setColorForAllLeds(CRGB::Black);
-  for(byte i = 0; i < NUM_BUTTONS; ++i) {
-    Button *button = &buttons[i];
-    writeLedsForButton(button);
+  if (mode == MODE_CMRI) {
+    for(byte i = 0; i < NUM_BUTTONS; ++i) {
+      Button *button = &buttons[i];
+      writeLedsForButton(button);
+    }
+  } 
+  if (mode == MODE_TEST_LIGHTS) {
+    if (blink) {
+      setColorForAllLeds(CRGB::Red);
+    }
   }
   FastLED.show();
 }
@@ -426,14 +437,24 @@ bool turnoutStateMatches(ButtonState *state) {
 
 void processButtonPresses() {
   EVERY_N_MILLIS(BUTTON_RATE) {
-    Serial.print(digitalRead(53));
-    Serial.print(digitalRead(51));
-    Serial.print(digitalRead(49));
-    Serial.print(digitalRead(47));
-    Serial.println();
+    int button53Down = !digitalRead(53);
+    int button51Down = !digitalRead(51);
+    int button49Down = !digitalRead(49);
+    int button47Down = !digitalRead(47);   
     for(byte i = 0; i < NUM_BUTTONS; ++i) {
       readButtonPin(&buttons[i]);
     }
+
+    if (button53Down && mode == MODE_CMRI) {
+      mode = MODE_TEST_LIGHTS;
+    }
+    if (!button53Down && mode == MODE_TEST_LIGHTS) {
+      mode = MODE_CMRI;
+    }
+    if (button47Down && mode == MODE_CMRI) {
+      mode = MODE_SYNC_TURNOUTS;
+    }
+    
     for(byte i = 0; i < NUM_BUTTONS; ++i) {
       Button *button = &buttons[i];
       if (isButtonPressed(button)) {
@@ -490,13 +511,30 @@ void setColorForAllLeds(CRGB color) {
 }
 
 void syncTurnouts() {
-  if (STUB_CMRI) {
+  if (mode == MODE_STUB_CMRI) {
     EVERY_N_MILLIS(TURNOUT_SYNC_RATE) {
       for (byte i = 0; i < NUM_TURNOUTS; ++i) {
         turnoutInputs[i] = turnoutOutputs[i];
       }
     }
   } else {
+
+    if (mode == MODE_SYNC_TURNOUTS) {
+      for (byte i = 0; i < NUM_TURNOUTS; ++i) {
+        byte cmriOutput = i * 2;
+        if (turnoutOutputs[i] == TURNOUT_CLOSE) {
+          cmri.set_bit(cmriOutput, false);
+          cmri.set_bit(cmriOutput + 1, true);
+        } else if (turnoutOutputs[i] == TURNOUT_THROW) {
+          cmri.set_bit(cmriOutput, true);
+          cmri.set_bit(cmriOutput + 1, false);
+        }
+      }
+      cmri.process();
+      delay(100);
+      mode = MODE_CMRI;
+    }
+
     cmri.process();
 
     for (byte i = 0; i < NUM_TURNOUTS; ++i) {
@@ -548,7 +586,7 @@ void setup() {
   writeTurnouts();
 }
 
-void loop() {
+void loop() {  
   processButtonPresses();
 
   writeTurnouts();
