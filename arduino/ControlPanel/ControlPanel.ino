@@ -62,11 +62,11 @@ Button buttons[NUM_BUTTONS] = {
     {
       {
         1, { { 3, TURNOUT_CLOSE } },
-        2, { { 3, LED_ON }, { 4, LED_OFF } }
+        2, { { 3, LED_OFF }, { 4, LED_ON } }
       },
       {
         1, { { 3, TURNOUT_THROW } },
-        2, { { 3, LED_OFF }, { 4, LED_ON } }
+        2, { { 3, LED_ON }, { 4, LED_OFF } }
       }
     }
   },
@@ -370,7 +370,7 @@ void readTurnoutsForButton(Button *button) {
       if (button->pin == 46 && i == 1 && getButtonWithPin(50)->state == 1) {
         continue;
       }
-      
+
       ButtonState *state = &button->states[i];
       if (turnoutStateMatches(state) && (bestMatchedState == -1 || state->numTurnouts > button->states[bestMatchedState].numTurnouts)) {
         bestMatchedState = i;
@@ -398,7 +398,7 @@ void writeLeds() {
       Button *button = &buttons[i];
       writeLedsForButton(button);
     }
-  } 
+  }
   if (mode == MODE_TEST_LIGHTS) {
     if (blink) {
       setColorForAllLeds(CRGB::Red);
@@ -442,7 +442,7 @@ void processButtonPresses() {
     int button53Down = !digitalRead(53);
     int button51Down = !digitalRead(51);
     int button49Down = !digitalRead(49);
-    int button47Down = !digitalRead(47);   
+    int button47Down = !digitalRead(47);
     for(byte i = 0; i < NUM_BUTTONS; ++i) {
       readButtonPin(&buttons[i]);
     }
@@ -456,7 +456,7 @@ void processButtonPresses() {
     if (button47Down && mode == MODE_CMRI) {
       mode = MODE_SYNC_TURNOUTS;
     }
-    
+
     for(byte i = 0; i < NUM_BUTTONS; ++i) {
       Button *button = &buttons[i];
       if (isButtonPressed(button)) {
@@ -588,7 +588,7 @@ void setup() {
   writeTurnouts();
 }
 
-void loop() {  
+void loop() {
   processButtonPresses();
 
   writeTurnouts();
