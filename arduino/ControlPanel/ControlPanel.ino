@@ -21,12 +21,12 @@ CMRI cmri(0, 48, 48); // 48 inputs, 48 outputs configure in JMRI: CMRI connectio
 #define TURNOUT_CLOSE  1
 #define TURNOUT_THROW  2
 
-#define NUM_BUTTONS               15
-#define NUM_BUTTON_STATES          6
-#define NUM_BUTTON_STATE_TURNOUTS  6
-#define NUM_BUTTON_STATE_LEDS      6
-#define BUTTON_RATE               50
-#define BUTTON_46_ALT_MODE         1
+#define NUM_ROUTE_CONTROLS               15
+#define NUM_ROUTE_CONTROL_STATES          6
+#define NUM_ROUTE_CONTROL_STATE_TURNOUTS  6
+#define NUM_ROUTE_CONTROL_STATE_LEDS      6
+#define BUTTON_DEBOUNCE_MS               50
+#define BUTTON_46_ALT_MODE                1
 
 typedef struct {
   byte led; // 1-based as numbered in JMRI
@@ -40,23 +40,23 @@ typedef struct {
 
 typedef struct {
   byte numTurnouts;
-  TurnoutState turnouts[NUM_BUTTON_STATE_TURNOUTS];
+  TurnoutState turnouts[NUM_ROUTE_CONTROL_STATE_TURNOUTS];
   byte numLeds;
-  LedState leds[NUM_BUTTON_STATE_LEDS];
-} SwitchState;
+  LedState leds[NUM_ROUTE_CONTROL_STATE_LEDS];
+} RouteControlState;
 
 typedef struct {
   Button *button;
 
   byte numStates;
-  SwitchState states[NUM_BUTTON_STATES];
+  RouteControlState states[NUM_ROUTE_CONTROL_STATES];
   short state;
   short lastState;
-} SwitchButton;
+} RouteControl;
 
-SwitchButton buttons[NUM_BUTTONS] = {
+RouteControl routeControls[NUM_ROUTE_CONTROLS] = {
   {
-    new Button(48, BUTTON_RATE), 2,
+    new Button(48, BUTTON_DEBOUNCE_MS), 2,
     {
       {
         1, { { 3, TURNOUT_CLOSE } },
@@ -69,7 +69,7 @@ SwitchButton buttons[NUM_BUTTONS] = {
     }
   },
   {
-    new Button(44, BUTTON_RATE), 2,
+    new Button(44, BUTTON_DEBOUNCE_MS), 2,
     {
       {
         1, { { 21, TURNOUT_CLOSE } },
@@ -82,7 +82,7 @@ SwitchButton buttons[NUM_BUTTONS] = {
     }
   },
   {
-    new Button(46, BUTTON_RATE), 3,
+    new Button(46, BUTTON_DEBOUNCE_MS), 3,
     {
       {
         2, { { 9, TURNOUT_CLOSE }, { 10, TURNOUT_CLOSE } },
@@ -99,7 +99,7 @@ SwitchButton buttons[NUM_BUTTONS] = {
     }
   },
   {
-    new Button(50, BUTTON_RATE), 2,
+    new Button(50, BUTTON_DEBOUNCE_MS), 2,
     {
       {
         1, { { 11, TURNOUT_THROW } },
@@ -112,7 +112,7 @@ SwitchButton buttons[NUM_BUTTONS] = {
     }
   },
   {
-    new Button(42, BUTTON_RATE), 3,
+    new Button(42, BUTTON_DEBOUNCE_MS), 3,
     {
       {
         2, { { 12, TURNOUT_CLOSE }, { 13, TURNOUT_CLOSE } },
@@ -129,7 +129,7 @@ SwitchButton buttons[NUM_BUTTONS] = {
     }
   },
   {
-    new Button(38, BUTTON_RATE), 2,
+    new Button(38, BUTTON_DEBOUNCE_MS), 2,
     {
       {
         1, { { 4, TURNOUT_CLOSE } },
@@ -142,7 +142,7 @@ SwitchButton buttons[NUM_BUTTONS] = {
     }
   },
   {
-    new Button(40, BUTTON_RATE), 2,
+    new Button(40, BUTTON_DEBOUNCE_MS), 2,
     {
       {
         1, { { 5, TURNOUT_CLOSE } },
@@ -155,7 +155,7 @@ SwitchButton buttons[NUM_BUTTONS] = {
     }
   },
   {
-    new Button(30, BUTTON_RATE), 2,
+    new Button(30, BUTTON_DEBOUNCE_MS), 2,
     {
       {
         1, { { 2, TURNOUT_CLOSE } },
@@ -168,7 +168,7 @@ SwitchButton buttons[NUM_BUTTONS] = {
     }
   },
   {
-    new Button(26, BUTTON_RATE), 2,
+    new Button(26, BUTTON_DEBOUNCE_MS), 2,
     {
       {
         1, { { 8, TURNOUT_CLOSE } },
@@ -181,7 +181,7 @@ SwitchButton buttons[NUM_BUTTONS] = {
     }
   },
   {
-    new Button(28, BUTTON_RATE), 2,
+    new Button(28, BUTTON_DEBOUNCE_MS), 2,
     {
       {
         1, { { 20, TURNOUT_CLOSE } },
@@ -194,7 +194,7 @@ SwitchButton buttons[NUM_BUTTONS] = {
     }
   },
   {
-    new Button(32, BUTTON_RATE), 2,
+    new Button(32, BUTTON_DEBOUNCE_MS), 2,
     {
       {
         1, { { 14, TURNOUT_CLOSE } },
@@ -207,7 +207,7 @@ SwitchButton buttons[NUM_BUTTONS] = {
     }
   },
   {
-    new Button(36, BUTTON_RATE), 6,
+    new Button(36, BUTTON_DEBOUNCE_MS), 6,
     {
       {
         1, { { 15, TURNOUT_CLOSE } },
@@ -236,7 +236,7 @@ SwitchButton buttons[NUM_BUTTONS] = {
     }
   },
   {
-    new Button(24, BUTTON_RATE), 2,
+    new Button(24, BUTTON_DEBOUNCE_MS), 2,
     {
       {
         1, { { 7, TURNOUT_CLOSE } },
@@ -249,10 +249,10 @@ SwitchButton buttons[NUM_BUTTONS] = {
     }
   },
   {
-    new Button(34, BUTTON_RATE)
+    new Button(34, BUTTON_DEBOUNCE_MS)
   },
   {
-    new Button(22, BUTTON_RATE), 2,
+    new Button(22, BUTTON_DEBOUNCE_MS), 2,
     {
       {
         2, { { 1, TURNOUT_CLOSE }, { 6, TURNOUT_CLOSE } },
@@ -266,36 +266,31 @@ SwitchButton buttons[NUM_BUTTONS] = {
   }
 };
 
+Button testLEDsButton(53, BUTTON_DEBOUNCE_MS);
+Button syncTurnoutsButton(47, BUTTON_DEBOUNCE_MS);
+
 #define BLINK_RATE 100
 bool blink = true;
 
 #define NUM_TURNOUTS      22
-#define TURNOUT_SYNC_RATE 1000
-int turnoutSyncTime = 0;
 byte turnoutInputs[NUM_TURNOUTS];
 byte turnoutOutputs[NUM_TURNOUTS];
 
-#define MODE_CMRI 0
-#define MODE_STUB_CMRI 1
-#define MODE_TEST_LIGHTS 2
-#define MODE_SYNC_TURNOUTS 3
-int mode = MODE_CMRI;
-
-void setupSwitchButton(SwitchButton *button) {
+void setupRouteControl(RouteControl *button) {
   button->button->setup();
 }
 
-SwitchButton *getSwitchButtonWithPin(byte pin) {
-  for (byte i = 0; i < NUM_BUTTONS; ++i) {
-    if (buttons[i].button->pin() == pin) {
-      return &buttons[i];
+RouteControl *getRouteControlWithPin(byte pin) {
+  for (byte i = 0; i < NUM_ROUTE_CONTROLS; ++i) {
+    if (routeControls[i].button->pin() == pin) {
+      return &routeControls[i];
     }
   }
 
   return NULL;
 }
 
-SwitchState *getSwitchState(SwitchButton *button) {
+RouteControlState *getRouteControlState(RouteControl *button) {
   if (button->state >= 0) {
     return &button->states[button->state];
   } else {
@@ -303,21 +298,21 @@ SwitchState *getSwitchState(SwitchButton *button) {
   }
 }
 
-SwitchState *setNextSwitchState(SwitchButton *button) {
+RouteControlState *setNextRouteControlState(RouteControl *button) {
   button->lastState = button->state;
   button->state = (button->state + 1) % button->numStates;
   return &button->states[button->state];
 }
 
 void writeTurnouts() {
-  for(byte i = 0; i < NUM_BUTTONS; ++i) {
-    SwitchButton *button = &buttons[i];
-    writeTurnoutsForSwitchButton(button);
+  for(byte i = 0; i < NUM_ROUTE_CONTROLS; ++i) {
+    RouteControl *button = &routeControls[i];
+    writeTurnoutsForRouteControl(button);
   }
 }
 
-void writeTurnoutsForSwitchButton(SwitchButton *button) {
-  SwitchState *state = getSwitchState(button);
+void writeTurnoutsForRouteControl(RouteControl *button) {
+  RouteControlState *state = getRouteControlState(button);
   if (state != NULL) {
     for (byte i = 0; i < state->numTurnouts; ++i) {
       TurnoutState *turnoutState = &state->turnouts[i];
@@ -328,21 +323,21 @@ void writeTurnoutsForSwitchButton(SwitchButton *button) {
 }
 
 void readTurnouts() {
-  for(byte i = 0; i < NUM_BUTTONS; ++i) {
-    SwitchButton *button = &buttons[i];
-    readTurnoutsForSwitchButton(button);
+  for(byte i = 0; i < NUM_ROUTE_CONTROLS; ++i) {
+    RouteControl *button = &routeControls[i];
+    readTurnoutsForRouteControl(button);
   }
 }
 
-void readTurnoutsForSwitchButton(SwitchButton *button) {
+void readTurnoutsForRouteControl(RouteControl *button) {
   if (button->state == button->lastState) {
     short bestMatchedState = -1;
     for(byte i = 0; i < button->numStates; i++) {
-      if (button->button->pin() == 46 && i == 1 && getSwitchButtonWithPin(50)->state == 1) {
+      if (button->button->pin() == 46 && i == 1 && getRouteControlWithPin(50)->state == 1) {
         continue;
       }
 
-      SwitchState *state = &button->states[i];
+      RouteControlState *state = &button->states[i];
       if (turnoutStateMatches(state) && (bestMatchedState == -1 || state->numTurnouts > button->states[bestMatchedState].numTurnouts)) {
         bestMatchedState = i;
       }
@@ -350,7 +345,7 @@ void readTurnoutsForSwitchButton(SwitchButton *button) {
     button->lastState = bestMatchedState;
     button->state = bestMatchedState;
   } else {
-    SwitchState *state = getSwitchState(button);
+    RouteControlState *state = getRouteControlState(button);
     if (state != NULL) {
       if (turnoutStateMatches(state)) {
         button->lastState = button->state;
@@ -360,26 +355,28 @@ void readTurnoutsForSwitchButton(SwitchButton *button) {
 }
 
 void writeLeds() {
-  setColorForAllLeds(CRGB::Black);
   EVERY_N_MILLIS(BLINK_RATE) {
     blink = !blink;
   }
-  if (mode == MODE_CMRI) {
-    for(byte i = 0; i < NUM_BUTTONS; ++i) {
-      SwitchButton *button = &buttons[i];
-      writeLedsForSwitchButton(button);
-    }
-  }
-  if (mode == MODE_TEST_LIGHTS) {
+
+  setColorForAllLeds(CRGB::Black);
+
+  if (testLEDsButton.read() == Button::PRESSED) {
     if (blink) {
       setColorForAllLeds(CRGB::Red);
     }
+  } else {
+    for(byte i = 0; i < NUM_ROUTE_CONTROLS; ++i) {
+      RouteControl *button = &routeControls[i];
+      writeLedsForRouteControl(button);
+    }
   }
+
   FastLED.show();
 }
 
-void writeLedsForSwitchButton(SwitchButton *button) {
-  SwitchState *state = getSwitchState(button);
+void writeLedsForRouteControl(RouteControl *button) {
+  RouteControlState *state = getRouteControlState(button);
   if (state != NULL) {
     for (byte i = 0; i < state->numLeds; ++i) {
       LedState *ledState = &state->leds[i];
@@ -397,7 +394,7 @@ bool isTurnoutState(byte turnout, byte state) {
   return turnoutInputs[turnout - 1] == state;
 }
 
-bool turnoutStateMatches(SwitchState *state) {
+bool turnoutStateMatches(RouteControlState *state) {
   for (byte i = 0; i < state->numTurnouts; ++i) {
     TurnoutState *turnoutState = &state->turnouts[i];
     if (!isTurnoutState(turnoutState->turnout, turnoutState->state)) {
@@ -408,31 +405,13 @@ bool turnoutStateMatches(SwitchState *state) {
   return true;
 }
 
-void processSwitchButtonPresses() {
-  // int button53Down = !digitalRead(53);
-  // int button51Down = !digitalRead(51);
-  // int button49Down = !digitalRead(49);
-  // int button47Down = !digitalRead(47);
-  // for(byte i = 0; i < NUM_BUTTONS; ++i) {
-  //   readSwitchButtonPin(&buttons[i]);
-  // }
-
-  // if (button53Down && mode == MODE_CMRI) {
-  //   mode = MODE_TEST_LIGHTS;
-  // }
-  // if (!button53Down && mode == MODE_TEST_LIGHTS) {
-  //   mode = MODE_CMRI;
-  // }
-  // if (button47Down && mode == MODE_CMRI) {
-  //   mode = MODE_SYNC_TURNOUTS;
-  // }
-
-  for(byte i = 0; i < NUM_BUTTONS; ++i) {
-    SwitchButton *button = &buttons[i];
+void processRouteControls() {
+  for(byte i = 0; i < NUM_ROUTE_CONTROLS; ++i) {
+    RouteControl *button = &routeControls[i];
     if (button->button->pressed()) {
       Serial.print("button pressed: ");
       Serial.println(button->button->pin());
-      setNextSwitchState(button);
+      setNextRouteControlState(button);
 
       if (button->button->pin() == 36) {
         if (button->state >= 3) {
@@ -441,27 +420,27 @@ void processSwitchButtonPresses() {
       }
 
       if (button->button->pin() == 34) {
-        SwitchButton *peerSwitchButton = getSwitchButtonWithPin(36);
-        setNextSwitchState(peerSwitchButton);
-        if (peerSwitchButton->state < 3) {
-          peerSwitchButton->state = 3;
+        RouteControl *peerRouteControl = getRouteControlWithPin(36);
+        setNextRouteControlState(peerRouteControl);
+        if (peerRouteControl->state < 3) {
+          peerRouteControl->state = 3;
         }
       }
 
       if (button->button->pin() == 46) {
-        SwitchButton *peerSwitchButton = getSwitchButtonWithPin(50);
-        if (peerSwitchButton->state == BUTTON_46_ALT_MODE) {
+        RouteControl *peerRouteControl = getRouteControlWithPin(50);
+        if (peerRouteControl->state == BUTTON_46_ALT_MODE) {
           if (button->state == 1) {
-            setNextSwitchState(button);
+            setNextRouteControlState(button);
           }
         }
       }
 
       if (button->button->pin() == 50) {
         if (button->state == BUTTON_46_ALT_MODE) {
-          SwitchButton *peerSwitchButton = getSwitchButtonWithPin(46);
-          if (peerSwitchButton->state == 1) {
-            setNextSwitchState(peerSwitchButton);
+          RouteControl *peerRouteControl = getRouteControlWithPin(46);
+          if (peerRouteControl->state == 1) {
+            setNextRouteControlState(peerRouteControl);
           }
         }
       }
@@ -469,9 +448,9 @@ void processSwitchButtonPresses() {
   }
 }
 
-void setupSwitchButtons() {
-  for(byte i = 0; i < NUM_BUTTONS; ++i) {
-    setupSwitchButton(&buttons[i]);
+void setupRouteControls() {
+  for(byte i = 0; i < NUM_ROUTE_CONTROLS; ++i) {
+    setupRouteControl(&routeControls[i]);
   }
 }
 
@@ -482,56 +461,47 @@ void setColorForAllLeds(CRGB color) {
 }
 
 void syncTurnouts() {
-  if (mode == MODE_STUB_CMRI) {
-    EVERY_N_MILLIS(TURNOUT_SYNC_RATE) {
-      for (byte i = 0; i < NUM_TURNOUTS; ++i) {
-        turnoutInputs[i] = turnoutOutputs[i];
-      }
-    }
-  } else {
-
-    // if (mode == MODE_SYNC_TURNOUTS) {
-    //   for (byte i = 0; i < NUM_TURNOUTS; ++i) {
-    //     byte cmriOutput = i * 2;
-    //     if (turnoutOutputs[i] == TURNOUT_CLOSE) {
-    //       cmri.set_bit(cmriOutput, false);
-    //       cmri.set_bit(cmriOutput + 1, true);
-    //     } else if (turnoutOutputs[i] == TURNOUT_THROW) {
-    //       cmri.set_bit(cmriOutput, true);
-    //       cmri.set_bit(cmriOutput + 1, false);
-    //     }
-    //   }
-    //   cmri.process();
-    //   delay(100);
-    //   mode = MODE_CMRI;
-    // }
-
-    cmri.process();
-
+  if (syncTurnoutsButton.pressed()) {
     for (byte i = 0; i < NUM_TURNOUTS; ++i) {
       byte cmriOutput = i * 2;
       if (turnoutOutputs[i] == TURNOUT_CLOSE) {
-        cmri.set_bit(cmriOutput, true);
-        cmri.set_bit(cmriOutput + 1, false);
-      } else if (turnoutOutputs[i] == TURNOUT_THROW) {
         cmri.set_bit(cmriOutput, false);
         cmri.set_bit(cmriOutput + 1, true);
-      } else {
-        cmri.set_bit(cmriOutput, false);
+      } else if (turnoutOutputs[i] == TURNOUT_THROW) {
+        cmri.set_bit(cmriOutput, true);
         cmri.set_bit(cmriOutput + 1, false);
       }
-//      turnoutOutputs[i] = TURNOUT_UNKNOWN;
     }
 
-    for (byte i = 0; i < NUM_TURNOUTS; ++i) {
-      byte cmriInput = i * 2;
-      if (cmri.get_bit(cmriInput) && !cmri.get_bit(cmriInput + 1)) {
-        turnoutInputs[i] = TURNOUT_CLOSE;
-      } else if (!cmri.get_bit(cmriInput) && cmri.get_bit(cmriInput + 1)) {
-        turnoutInputs[i] = TURNOUT_THROW;
-      } else {
-        turnoutInputs[i] = TURNOUT_UNKNOWN;
-      }
+    cmri.process();
+    delay(50);
+  }
+
+  for (byte i = 0; i < NUM_TURNOUTS; ++i) {
+    byte cmriOutput = i * 2;
+    if (turnoutOutputs[i] == TURNOUT_CLOSE) {
+      cmri.set_bit(cmriOutput, true);
+      cmri.set_bit(cmriOutput + 1, false);
+    } else if (turnoutOutputs[i] == TURNOUT_THROW) {
+      cmri.set_bit(cmriOutput, false);
+      cmri.set_bit(cmriOutput + 1, true);
+    } else {
+      cmri.set_bit(cmriOutput, false);
+      cmri.set_bit(cmriOutput + 1, false);
+    }
+  }
+
+  cmri.process();
+  delay(50);
+
+  for (byte i = 0; i < NUM_TURNOUTS; ++i) {
+    byte cmriInput = i * 2;
+    if (cmri.get_bit(cmriInput) && !cmri.get_bit(cmriInput + 1)) {
+      turnoutInputs[i] = TURNOUT_CLOSE;
+    } else if (!cmri.get_bit(cmriInput) && cmri.get_bit(cmriInput + 1)) {
+      turnoutInputs[i] = TURNOUT_THROW;
+    } else {
+      turnoutInputs[i] = TURNOUT_UNKNOWN;
     }
   }
 }
@@ -549,17 +519,16 @@ void setup() {
   FastLED.show();
   delay(500);
 
-  setupSwitchButtons();
+  setupRouteControls();
 
-  // pinMode(47, INPUT_PULLUP);
-  // pinMode(49, INPUT_PULLUP);
-  // pinMode(51, INPUT_PULLUP);
-  // pinMode(53, INPUT_PULLUP);
+  testLEDsButton.setup();
+  syncTurnoutsButton.setup();
+
   writeTurnouts();
 }
 
 void loop() {
-  processSwitchButtonPresses();
+  processRouteControls();
 
   writeTurnouts();
   syncTurnouts();
