@@ -4,6 +4,7 @@
 #include <FastLED.h>
 #include <CMRI.h>
 #include "Button.h"
+#include "DCCSensor.h"
 
 #define LED_ON      true
 #define LED_OFF     false
@@ -11,7 +12,8 @@
 #define BRIGHTNESS  32
 #define LED_TYPE    WS2812B
 #define COLOR_ORDER GRB
-
+#define MIN_BRIGHTNESS 8
+#define MAX_BRIGHTNESS 64
 #define NUM_LEDS    36
 CRGB leds[NUM_LEDS];
 
@@ -268,9 +270,7 @@ RouteControl routeControls[NUM_ROUTE_CONTROLS] = {
 
 Button testLEDsButton(53, BUTTON_DEBOUNCE_MS);
 Button syncTurnoutsButton(47, BUTTON_DEBOUNCE_MS);
-
-#define BLINK_RATE 100
-bool blink = true;
+DCCSensor dccSensor(A0, 500);
 
 #define NUM_TURNOUTS      22
 byte turnoutInputs[NUM_TURNOUTS];
@@ -304,7 +304,7 @@ RouteControlState *setNextRouteControlState(RouteControl *button) {
   return &button->states[button->state];
 }
 
-void writeTurnouts() {
+void writeTurnoutsForRouteControls() {
   for(byte i = 0; i < NUM_ROUTE_CONTROLS; ++i) {
     RouteControl *button = &routeControls[i];
     writeTurnoutsForRouteControl(button);
@@ -354,28 +354,44 @@ void readTurnoutsForRouteControl(RouteControl *button) {
   }
 }
 
-void writeLeds() {
-  EVERY_N_MILLIS(BLINK_RATE) {
-    blink = !blink;
-  }
+#define BREATH_RATE 5
+int breathHue = 0;
+int breathDivisor = 30;
 
-  setColorForAllLeds(CRGB::Black);
+void setLedsToBreath() {
+  EVERY_N_MILLIS(BREATH_RATE) {
+    float breath = (exp(sin(millis() / 5000.0 * PI)) - 0.36787944) * 108.0;
+    breath = map(breath, 0, 255, MIN_BRIGHTNESS, MAX_BRIGHTNESS);
+    FastLED.setBrightness(breath);
+    fill_rainbow(leds, NUM_LEDS, breathHue++ / breathDivisor);
+    if (breathHue == (255 * breathDivisor)) {
+      breathHue = 0;
+    }
+  }
+}
+
+void setLedsForRouteControls() {
+  for(byte i = 0; i < NUM_ROUTE_CONTROLS; ++i) {
+    RouteControl *button = &routeControls[i];
+    setLedsForRouteControl(button);
+  }
+}
+
+void writeLeds() {
+  setLedsToColor(CRGB::Black);
 
   if (testLEDsButton.read() == Button::PRESSED) {
-    if (blink) {
-      setColorForAllLeds(CRGB::Red);
-    }
+    setLedsToColor(CRGB::Red);
+  } else if (dccSensor.read() == DCCSensor::STOPPED) {
+    setLedsToBreath();
   } else {
-    for(byte i = 0; i < NUM_ROUTE_CONTROLS; ++i) {
-      RouteControl *button = &routeControls[i];
-      writeLedsForRouteControl(button);
-    }
+    setLedsForRouteControls();
   }
 
   FastLED.show();
 }
 
-void writeLedsForRouteControl(RouteControl *button) {
+void setLedsForRouteControl(RouteControl *button) {
   RouteControlState *state = getRouteControlState(button);
   if (state != NULL) {
     for (byte i = 0; i < state->numLeds; ++i) {
@@ -454,14 +470,14 @@ void setupRouteControls() {
   }
 }
 
-void setColorForAllLeds(CRGB color) {
+void setLedsToColor(CRGB color) {
   for(byte i = 0; i < NUM_LEDS; ++i) {
     leds[i] = color;
   }
 }
 
 void syncTurnouts() {
-  if (syncTurnoutsButton.pressed()) {
+  if (syncTurnoutsButton.pressed() || dccSensor.started()) {
     for (byte i = 0; i < NUM_TURNOUTS; ++i) {
       byte cmriOutput = i * 2;
       if (turnoutOutputs[i] == TURNOUT_CLOSE) {
@@ -473,8 +489,9 @@ void syncTurnouts() {
       }
     }
 
+    delay(25);
     cmri.process();
-    delay(50);
+    delay(25);
   }
 
   for (byte i = 0; i < NUM_TURNOUTS; ++i) {
@@ -492,7 +509,6 @@ void syncTurnouts() {
   }
 
   cmri.process();
-  delay(50);
 
   for (byte i = 0; i < NUM_TURNOUTS; ++i) {
     byte cmriInput = i * 2;
@@ -515,7 +531,7 @@ void setup() {
   FastLED.addLeds<LED_TYPE, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
   FastLED.setBrightness(BRIGHTNESS);
 
-  setColorForAllLeds(CRGB::Gray);
+  setLedsToColor(CRGB::Gray);
   FastLED.show();
   delay(500);
 
@@ -524,15 +540,21 @@ void setup() {
   testLEDsButton.setup();
   syncTurnoutsButton.setup();
 
-  writeTurnouts();
+  writeTurnoutsForRouteControls();
 }
 
 void loop() {
-  processRouteControls();
+  if (dccSensor.stopped()) {
+    breathHue = 0;
+  }
 
-  writeTurnouts();
-  syncTurnouts();
-  readTurnouts();
+  if (dccSensor.read() == DCCSensor::STARTED) {
+    processRouteControls();
+
+    writeTurnoutsForRouteControls();
+    syncTurnouts();
+    readTurnouts();
+  }
 
   writeLeds();
 }
